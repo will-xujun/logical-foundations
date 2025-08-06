@@ -1364,26 +1364,36 @@ Theorem leb_complete : forall n m,
 Proof. intros n m H. generalize dependent m.
   induction n as [|n' IHn'].
   - intros m H. apply (O_le_n m).
-  - intros m H. Search "<=?". 
-  
+  - intros m H. Search "<=?". destruct m as [|m'].
+    + discriminate H.
+    + apply leb_Sn_Sm in H. apply IHn' in H. apply n_le_m__Sn_le_Sm. apply H. Qed.
+
 
 Theorem leb_correct : forall n m,
   n <= m ->
   n <=? m = true.
 Proof.
-  intros n m H. 
-
+  intros n m H. induction H.
+  - Search leb. apply leb_refl.
+  - specialize leb_transitive with (n:=n)(m:=m)(q:=S m) as H1.
+    assert ((n <=? m) = true /\ (m <=? S m) = true). { split. apply IHle. Search leb. apply NatList.leb_n_Sn. }
+    apply H1 in H0.
+    apply H0.
+    Qed.
 (** Hint: The next two can easily be proved without using [induction]. *)
 
 Theorem leb_iff : forall n m,
   n <=? m = true <-> n <= m.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros n m. split.
+  - apply leb_complete.
+  - apply leb_correct. Qed.
 
 Theorem leb_true_trans : forall n m o,
   n <=? m = true -> m <=? o = true -> n <=? o = true.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros n m o H1 H2. assert ((n <=? m) = true /\ (m <=? o) = true). { split. apply H1. apply H2. }
+  apply leb_transitive in H. apply H. Qed.
 (** [] *)
 
 Module R.
