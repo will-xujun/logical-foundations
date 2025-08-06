@@ -723,7 +723,7 @@ Qed.
 Theorem evSS_ev' : forall n,
   ev (S (S n)) -> ev n.
 Proof.
-  intros n E.  inversion E as [| n' E' Hnn'].
+  intros n E.  inversion E as [|n' E'].
   (* We are in the [E = ev_SS n' E'] case now. *)
   apply E'.
 Qed.
@@ -751,7 +751,7 @@ Proof. intros H. inversion H. Qed.
 Theorem SSSSev__even : forall n,
   ev (S (S (S (S n)))) -> ev n.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros n H. inversion H as [|n' H']. inversion H' as [|n'' H''].  apply H''. Qed.
 (** [] *)
 
 (** **** Exercise: 1 star, standard (ev5_nonsense)
@@ -761,7 +761,7 @@ Proof.
 Theorem ev5_nonsense :
   ev 5 -> 2 + 2 = 9.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros H. inversion H. inversion H1. inversion H3. Qed.
 (** [] *)
 
 (** The [inversion] tactic does quite a bit of work. For
@@ -880,8 +880,11 @@ Abort.
     [0]. If it was constructed by [ev_SS], then the evidence of [ev n]
     is of the form [ev_SS n' E'], where [n = S (S n')] and [E'] is
     evidence for [ev n']. In this case, the inductive hypothesis says
-    that the property we are trying to prove holds for [n']. *)
-
+    that the property we are trying to prove holds for [n'].
+    
+    This is induction on the derivation tree of [ev n].
+     *)
+    
 (** Let's try proving that lemma again: *)
 
 Lemma ev_Even : forall n,
@@ -922,7 +925,9 @@ Qed.
 (** **** Exercise: 2 stars, standard (ev_sum) *)
 Theorem ev_sum : forall n m, ev n -> ev m -> ev (n + m).
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros n m H1 H2. induction H1 as [|n' IHn'].
+  - simpl. apply H2.
+  - simpl. apply ev_SS. apply IHIHn'. Qed.
 (** [] *)
 
 (** **** Exercise: 3 stars, advanced, especially useful (ev_ev__ev) *)
@@ -931,7 +936,9 @@ Theorem ev_ev__ev : forall n m,
   (* Hint: There are two pieces of evidence you could attempt to induct upon
       here. If one doesn't work, try the other. *)
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros n m H1 H2. induction H2 as [|n' IHn'].
+  - simpl in H1. apply H1.
+  - simpl in H1. inversion H1. apply IHIHn' in H0. apply H0. Qed.
 (** [] *)
 
 (** **** Exercise: 3 stars, standard, optional (ev_plus_plus)
@@ -943,7 +950,15 @@ Proof.
 Theorem ev_plus_plus : forall n m p,
   ev (n+m) -> ev (n+p) -> ev (m+p).
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros n m p H1 H2. specialize ev_sum with (n:=n+m) (m:=n+p) as G.
+  apply G in H1. 
+  - rewrite add_assoc in H1. rewrite <- (add_assoc n m n) in H1.
+    rewrite (add_comm m n) in H1. rewrite (add_assoc n n m) in H1.
+    Search double. rewrite <- (double_plus n) in H1. rewrite <- add_assoc in H1.
+    apply ev_ev__ev with (n:=double n) (m:=m+p) in H1.
+    + apply H1.
+    + apply ev_double.
+  - apply H2. Qed.
 (** [] *)
 
 (** **** Exercise: 4 stars, advanced, optional (ev'_ev)
@@ -964,8 +979,15 @@ Inductive ev' : nat -> Prop :=
     propositions. *)
 
 Theorem ev'_ev : forall n, ev' n <-> ev n.
-Proof.
- (* FILL IN HERE *) Admitted.
+Proof. intros n. split.
+  - intros H. induction H as [ | | n' m ].
+    + apply ev_0.
+    + apply (ev_SS 0 (ev_0)).
+    + apply (ev_sum n' m). apply IHev'1. apply IHev'2.
+  - intros H. induction H as [ | n' H].
+    + apply ev'_0.
+    + assert (S (S n')= 2+n'). { reflexivity. }
+      rewrite H0. apply (ev'_sum 2 n' (ev'_2) (IHH)). Qed. 
 (** [] *)
 
 (** We can do similar inductive proofs on the [Perm3] relation,
@@ -999,14 +1021,27 @@ Qed.
 Lemma Perm3_In : forall (X : Type) (x : X) (l1 l2 : list X),
     Perm3 l1 l2 -> In x l1 -> In x l2.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros X x l1 l2 E1 E2.
+  induction E1 as [a b c | a b c | l1 l2 l3 E12 IH12 E23 IH23].
+  - destruct E2. 
+    + rewrite <- H. unfold In. right. left. reflexivity.
+    + destruct H. rewrite <- H. simpl. left. reflexivity.
+      destruct H. rewrite <- H. simpl. right. right. left. reflexivity.
+      destruct H.
+  - destruct E2.
+    + rewrite <- H. simpl. left. reflexivity.
+    + destruct H. rewrite <- H. simpl. right. right. left. reflexivity.
+      destruct H. rewrite <- H. simpl. right. left. reflexivity.
+      destruct H.
+  - apply IH12 in E2. apply IH23 in E2. apply E2. Qed.
 (** [] *)
 
 (** **** Exercise: 1 star, standard, optional (Perm3_NotIn) *)
 Lemma Perm3_NotIn : forall (X : Type) (x : X) (l1 l2 : list X),
     Perm3 l1 l2 -> ~In x l1 -> ~In x l2.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros X x l1 l2 H1. apply contrapositive with (P:= In x l2) (Q:= In x l1).
+  apply Perm3_symm in H1. apply Perm3_In. apply H1. Qed.
 (** [] *)
 
 (** **** Exercise: 2 stars, standard, optional (NotPerm3)
@@ -1015,7 +1050,11 @@ Proof.
     of the lemmas above, like [Perm3_In] can be useful for this. *)
 Example Perm3_example2 : ~ Perm3 [1;2;3] [1;2;4].
 Proof.
-  (* FILL IN HERE *) Admitted.
+  unfold not. intros H. specialize Perm3_In with (x:=3)(l1:=[1;2;3])(l2:=[1;2;4]) as H1.
+  apply H1 in H.
+  - destruct H. discriminate H. destruct H. discriminate H. destruct H. discriminate H.
+    destruct H.
+  - simpl. right. right. left. reflexivity. Qed.  
 (** [] *)
 
 
@@ -1110,29 +1149,51 @@ End Playground.
     practice exercises. *)
 
 (** **** Exercise: 3 stars, standard, especially useful (le_facts) *)
+Lemma le_m_Sm: forall m, m<= S m.
+Proof. intros m. destruct m as [|m'].
+- apply le_S. apply (le_n 0).
+- apply le_S. apply (le_n (S m')). Qed.
+
 Lemma le_trans : forall m n o, m <= n -> n <= o -> m <= o.
 Proof.
-  (* FILL IN HERE *) Admitted.
-
+  intros m n o H1 H2. generalize dependent o. inversion H1 as [|n' Hyp].
+  - intros o H2. apply H2.
+  - intros o H2. induction H2 as [|o' Hyp' D].
+    + apply (le_S m n'). apply Hyp.
+    + apply (le_S m o'). apply D. Qed. 
+  
 Theorem O_le_n : forall n,
   0 <= n.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros n. induction n as [|n' IH].
+  - apply (le_n 0).
+  - apply (le_S 0 n'). apply IH. Qed.
 
 Theorem n_le_m__Sn_le_Sm : forall n m,
   n <= m -> S n <= S m.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros n m H1.
+  induction H1 as [|n' m' H].
+  - apply (le_n (S n)).
+  - apply (le_S (S n) (S n')) in H. apply H. Qed.
 
 Theorem Sn_le_Sm__n_le_m : forall n m,
   S n <= S m -> n <= m.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros n m H. inversion H.
+  - apply (le_n m).
+  - specialize le_m_Sm with (m:=n) as H2.
+    apply (le_trans n (S n) m).
+    apply H2. apply H1. Qed. 
 
 Theorem le_plus_l : forall a b,
   a <= a + b.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros a b. induction b as [|b' IHb'].
+  - rewrite add_comm. simpl. apply (le_n a). 
+  - assert (a+b'<= a+ S b') as H. { rewrite (add_comm a (S b')). simpl. rewrite (add_comm b' a). apply (le_S (a+b')).
+  apply (le_n (a+b')). }
+    apply (le_trans _ (a+b') _). apply IHb'. apply H. Qed.
 (** [] *)
 
 (** **** Exercise: 2 stars, standard, especially useful (plus_le_facts1) *)
@@ -1141,13 +1202,50 @@ Theorem plus_le : forall n1 n2 m,
   n1 + n2 <= m ->
   n1 <= m /\ n2 <= m.
 Proof.
- (* FILL IN HERE *) Admitted.
+  intros n1 n2 m H. split.
+  - specialize le_plus_l with (a:=n1) (b:=n2) as H1.
+    apply (le_trans n1 (n1+n2) m). apply H1. apply H.
+  - rewrite add_comm in H. specialize le_plus_l with (a:=n2) (b:=n1) as H1.
+    apply (le_trans n2 (n2+n1) m). apply H1. apply H. Qed.
+
+Lemma S_le_pred: forall n q, S n <= q -> n<= pred q.
+Proof. intros n q H. generalize dependent q. induction n as [|n' IHn'].
+- intros q H. apply (O_le_n (Nat.pred q)).
+- intros q H. inversion H.
+  + simpl. apply (le_n (S n')).
+  + simpl. rewrite <- H1 in H. apply Sn_le_Sm__n_le_m in H. apply H. Qed.   
+
+Lemma plus_then_pred_le_pred_then_plus: forall p q, pred (p+q) <= pred p + q. 
+Proof. intros p q. destruct p as [|p'].
+  - simpl. apply (Sn_le_Sm__n_le_m (pred q) q).
+    destruct q as [|q']. apply (le_n 1). simpl. apply (le_m_Sm (S q')).
+  - simpl. apply (le_n (p'+q)). Qed.
+
+Lemma pred_n_le_n: forall n, pred n <= n.
+Proof. intros [|n'].
+- simpl. apply (le_n 0).
+- simpl. apply (le_m_Sm n'). Qed.
 
 Theorem plus_le_cases : forall n m p q,
   n + m <= p + q -> n <= p \/ m <= q.
   (** Hint: May be easiest to prove by induction on [n]. *)
 Proof.
-(* FILL IN HERE *) Admitted.
+  intros n m p q H. generalize dependent m. generalize dependent p. generalize dependent q.
+  induction n as [|n' IHn'].
+  - left. apply (O_le_n p).
+  - intros q p m H. simpl in H. apply S_le_pred in H.
+    destruct p as [|p'].
+    + rewrite add_comm in H. simpl in H. right.
+      specialize (le_plus_l) with (a:=m) (b:=n') as H0.
+      apply (le_trans _ (m+n') _). apply H0.
+      apply (le_trans _ (pred q) _). apply H. apply (pred_n_le_n q).
+    + assert (pred((S p')+q)<= pred (S p') + q). { apply plus_then_pred_le_pred_then_plus. }
+      apply (le_trans (n'+m)(pred ((S p')+q))(pred (S p') + q)) in H.
+      -- apply IHn' with (p:=pred (S p')) (q:=q) in H. destruct H.
+         * left. simpl in H. apply (n_le_m__Sn_le_Sm). apply H.
+         * right. apply H.
+      -- simpl. apply (le_n (p'+q)).
+  Qed.
 (** [] *)
 
 (** **** Exercise: 2 stars, standard, especially useful (plus_le_facts2) *)
@@ -1156,51 +1254,124 @@ Theorem plus_le_compat_l : forall n m p,
   n <= m ->
   p + n <= p + m.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros n m p H. induction p as [|p' IH'].
+  - simpl. apply H.
+  - simpl. apply (n_le_m__Sn_le_Sm (p'+n)(p'+m) IH'). Qed.
+  
 
 Theorem plus_le_compat_r : forall n m p,
   n <= m ->
   n + p <= m + p.
 Proof.
-  (* FILL IN HERE *) Admitted.
-
+  intros n m p H. rewrite (add_comm n p). rewrite (add_comm m p).
+  apply (plus_le_compat_l n m p). apply H. Qed.
+   
 Theorem le_plus_trans : forall n m p,
   n <= m ->
   n <= m + p.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros n m p H. induction p as [|p' IHp'].
+  - rewrite add_comm. apply H. 
+  - rewrite add_comm. simpl. rewrite add_comm.
+    apply (le_S n (m+p')). apply IHp'. Qed.
 (** [] *)
 
 (** **** Exercise: 3 stars, standard, optional (lt_facts) *)
+Lemma le_O_equal: forall n, n<=0 -> n=0.
+Proof. intros [|n'].
+  - intros H. reflexivity.
+  - intros H. inversion H. Qed.
+
+Lemma ge_le_equal: forall n m, n<=m -> n>=m -> n=m.
+Proof. intros n m H1 H2. generalize dependent m. induction n as [|n' IHn'].
+- intros m H1 H2. apply le_O_equal in H2. rewrite H2. reflexivity.
+- intros m H1 H2. induction m as [|m' IHm'].
+  + apply le_O_equal in H1. rewrite H1. reflexivity.
+  + apply Sn_le_Sm__n_le_m in H1. apply Sn_le_Sm__n_le_m in H2.
+    apply IHn' in H1. rewrite H1. reflexivity. 
+    apply H2. Qed.
+
 Theorem lt_ge_cases : forall n m,
   n < m \/ n >= m.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros n m.
+  induction n as [|n' IHn'].
+  - destruct m.
+    + right. unfold ">=". apply (le_n 0).
+    + left. unfold "<". apply (n_le_m__Sn_le_Sm). apply (O_le_n (m)).
+  - destruct IHn'.
+    + unfold "<" in H. induction H.
+      * right. apply (le_n (S n')).
+      * destruct IHle.
+        -- left. unfold "<". unfold "<" in H0.
+          apply (le_trans _ m _). apply H0. apply (le_m_Sm m). 
+        -- left. apply ge_le_equal in H. rewrite <- H.
+          unfold "<". apply (le_n (S m)).
+          apply H0.
+    + right. apply (le_trans _ n' _).
+      apply H. apply (le_m_Sm n'). Qed. 
 
 Theorem n_lt_m__n_le_m : forall n m,
   n < m ->
   n <= m.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros n m H. unfold "<" in H. apply (le_trans _ (S n) _).
+  apply (le_m_Sm). apply H. Qed.
+
+Lemma S_plus_equal_plus_S: forall a b, S (a+b)= S a + b.
+Proof. intros a b. reflexivity. Qed.
 
 Theorem plus_lt : forall n1 n2 m,
   n1 + n2 < m ->
   n1 < m /\ n2 < m.
 Proof.
-(* FILL IN HERE *) Admitted.
+  intros n1 n2 m H.
+  split.
+  - unfold "<". inversion H.
+    + rewrite S_plus_equal_plus_S.
+      apply (le_plus_l (S n1) n2).
+    + rewrite S_plus_equal_plus_S in H0. 
+      apply (le_trans _ (S n1 + n2) _).
+      * apply (le_plus_l (S n1) n2).
+      * apply (le_trans _ m0 _).
+        apply H0. apply (le_m_Sm m0).
+  - rewrite add_comm in H. unfold "<". inversion H.
+      + rewrite S_plus_equal_plus_S.
+      apply (le_plus_l (S n2) n1).
+    + rewrite S_plus_equal_plus_S in H0. 
+      apply (le_trans _ (S n2 + n1) _).
+      * apply (le_plus_l (S n2) n1).
+      * apply (le_trans _ m0 _).
+        apply H0. apply (le_m_Sm m0). Qed.
 (** [] *)
 
 (** **** Exercise: 4 stars, standard, optional (leb_le) *)
+Lemma leb_Sn_Sm: forall n m, (S n) <=? (S m) = true -> n <=? m = true.
+Proof. intros n m H. simpl in H. apply H. Qed.
+
+Lemma leb_S: forall n m, (S n) <=? m =true -> (n <=? (pred m)) = true.
+Proof. intros n m H. generalize dependent m. induction n as [|n' IHn'].
+  - intros m H. reflexivity.
+  - intros m H. destruct m as [|m'].
+    + simpl in H. discriminate H.
+    + destruct m' as [|m''].
+      * simpl in H. discriminate H.
+      * Search leb. apply leb_Sn_Sm in H. apply (IHn' (S m'')) in H.
+        simpl. simpl in H. apply H. Qed.
+
 Theorem leb_complete : forall n m,
   n <=? m = true -> n <= m.
-Proof.
-  (* FILL IN HERE *) Admitted.
+Proof. intros n m H. generalize dependent m.
+  induction n as [|n' IHn'].
+  - intros m H. apply (O_le_n m).
+  - intros m H. Search "<=?". 
+  
 
 Theorem leb_correct : forall n m,
   n <= m ->
   n <=? m = true.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros n m H. 
 
 (** Hint: The next two can easily be proved without using [induction]. *)
 
