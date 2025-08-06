@@ -1,0 +1,9 @@
+*.aux
+*.html
+*.vo
+*.vok
+*.vos
+*.svg
+*.glob
+LICENSE
+common/
