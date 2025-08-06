@@ -418,7 +418,7 @@ Inductive Perm3 {X : Type} : list X -> list X -> Prop :=
     itself? *)
 
 (* FILL IN HERE
-
+      No. The type of [[1;2;3]] is List (List Nat) which is of size 1. Perm3 is never defined on lists of size 1.
     [] *)
 
 (* ================================================================= *)
@@ -476,6 +476,9 @@ Inductive Perm3 {X : Type} : list X -> list X -> Prop :=
 Inductive ev : nat -> Prop :=
   | ev_0                       : ev 0
   | ev_SS (n : nat) (H : ev n) : ev (S (S n)).
+  
+Check ev 0.
+Check ev (S (S 0)).
 
 (** Such definitions are interestingly different from previous uses of
     [Inductive] for defining inductive datatypes like [nat] or [list].
@@ -532,7 +535,7 @@ Check ev_SS : forall (n : nat), ev n -> ev (S (S n)).
 (** In fact, Coq also accepts the following equivalent definition of [ev]: *)
 
 Module EvPlayground.
-
+(* ev_0 is a proof term of the type ev 0 *)
 Inductive ev : nat -> Prop :=
   | ev_0  : ev 0
   | ev_SS : forall (n : nat), ev n -> ev (S (S n)).
@@ -566,7 +569,9 @@ Qed.
 Theorem ev_double : forall n,
   ev (double n).
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros n. induction n as [|n' IHn'].
+  - simpl. apply ev_0.
+  - simpl. apply ev_SS. apply IHn'. Qed. 
 (** [] *)
 
 (* ================================================================= *)
@@ -606,12 +611,16 @@ Qed.
 (** **** Exercise: 1 star, standard (Perm3) *)
 Lemma Perm3_ex1 : Perm3 [1;2;3] [2;3;1].
 Proof.
-  (* FILL IN HERE *) Admitted.
+  apply (perm3_trans _ [2;1;3] _
+          (perm3_swap12 _ _ _)
+          (perm3_swap23 _ _ _)). Qed.
 
 Lemma Perm3_refl : forall (X : Type) (a b c : X),
   Perm3 [a;b;c] [a;b;c].
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros X a b c. apply perm3_trans with (l2:=[b;a;c]).
+  apply perm3_swap12. apply perm3_swap12.
+  Qed.
 (** [] *)
 
 (* ################################################################# *)
@@ -679,7 +688,9 @@ Theorem le_inversion : forall (n m : nat),
   le n m ->
   (n = m) \/ (exists m', m = S m' /\ le n m').
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros n m H. destruct H as [|m' E'] eqn:EE.
+    + left. reflexivity.
+    + right. exists m'. split. reflexivity. apply E'. Qed.
 (** [] *)
 
 (** We can use the inversion lemma that we proved above to help
