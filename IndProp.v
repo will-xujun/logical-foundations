@@ -1436,12 +1436,33 @@ Definition manual_grade_for_R_provability : option (nat*string) := None.
     Figure out which function; then state and prove this equivalence
     in Coq. *)
 
-Definition fR : nat -> nat -> nat
-  (* REPLACE THIS LINE WITH ":= _your_definition_ ." *). Admitted.
+Definition fR : nat -> nat -> nat := fun m n => m+n.
 
 Theorem R_equiv_fR : forall m n o, R m n o <-> fR m n = o.
-Proof.
-(* FILL IN HERE *) Admitted.
+Proof.   intros m n o. split.
+  - intros H. induction H.
+    + reflexivity.
+    + simpl. rewrite IHR. reflexivity.
+    + unfold fR. rewrite add_comm. simpl. rewrite add_comm. unfold fR in IHR. rewrite IHR. reflexivity.
+    + unfold fR in IHR. unfold fR. simpl in IHR. injection IHR as H1.
+      rewrite add_comm in H1. simpl in H1. injection H1 as H2. rewrite add_comm in H2. apply H2.
+    + unfold fR. unfold fR in IHR. rewrite add_comm. apply IHR.
+  - intros H. unfold fR in H. generalize dependent n. generalize dependent o. induction m as [|m' IHm'].
+    + intros o n H. generalize dependent o. induction n as [|n' IHn'].
+      * intros o H. simpl in H. rewrite <- H. apply c1.
+      * intros o H. destruct o as [|o'].
+        -- discriminate H.
+        -- apply (c3 _ _ _). simpl in H. injection H as H1. apply IHn' with (o:=o') in H1. apply H1.
+    + intros o n H. generalize dependent o. induction n as [|n' IHn'].
+      * intros o H. destruct o as [|o'].
+        -- discriminate H.
+        -- simpl in H. rewrite add_comm in H. injection H as H1. apply (c2 _ _ _).
+          specialize IHm' with (n:=0) (o:=o') as G. rewrite add_comm in G. apply G in H1. apply H1.
+      * intros o H. destruct o as [|o'].
+        -- discriminate H.
+        -- apply (c3 _ _ _). rewrite add_comm in H. injection H as H1. rewrite add_comm in H1.
+          apply IHn' with (o:=o') in H1. apply H1.
+   Qed.
 (** [] *)
 
 End R.
@@ -1483,18 +1504,50 @@ End R.
       is a subsequence of [l3], then [l1] is a subsequence of [l3]. *)
 
 Inductive subseq : list nat -> list nat -> Prop :=
-(* FILL IN HERE *)
+  | subseq_nil l : subseq [] l
+  | subseq_sing [h] l1 (H: In h l1) : subseq [h] l1
+  | subseq_app0 l1 l1' l2 l2' (H1: subseq l1 l1') (H2: subseq l2 l2') : subseq (l1++l2) (l1'++l2')
 .
 
 Theorem subseq_refl : forall (l : list nat), subseq l l.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros l. induction l as [|h t IH].
+  - apply (subseq_nil []).
+  - assert (In h [h]). { simpl. left. reflexivity. }
+    assert (subseq [h] [h]). { apply (subseq_sing [h]). apply H. }
+    apply (subseq_app0 [h] [h] t t H0 IH). Qed.
 
 Theorem subseq_app : forall (l1 l2 l3 : list nat),
   subseq l1 l2 ->
   subseq l1 (l2 ++ l3).
-Proof.
-  (* FILL IN HERE *) Admitted.
+Proof. intros l1 l2 l3 H. 
+  - assert (subseq (l1++[]) (l2++l3)). { apply (subseq_app0 l1 l2 [] l3). apply H. apply (subseq_nil l3). }
+    rewrite app_nil_r in H0. apply H0. Qed.
+
+Lemma subseq_len_le: forall l1 l2, subseq l1 l2 -> length l1 <= length l2.
+Proof. intros l1 l2 H. induction H.
+- simpl. apply O_le_n.
+- destruct l1 as [|h1 t].
+  + destruct H.
+  + simpl. apply n_le_m__Sn_le_Sm. apply O_le_n.
+- rewrite app_length. rewrite app_length. apply (le_trans _ (length l1' + length l2) _).
+  + apply plus_le_compat_r. apply IHsubseq1.
+  + apply plus_le_compat_l. apply IHsubseq2. Qed.
+  
+Search le.
+Lemma length_O_is_empty: forall (X:Type) (l: list X), length l = 0 -> l= [].
+Proof. intros X [|h t] H.
+  - reflexivity.
+  - simpl in H. discriminate H. Qed.
+
+Lemma subseq_of_nil_is_nil: forall l, subseq l [] -> l=[].
+Proof. intros l H. induction l as [|h t IH].
+- reflexivity.
+- apply subseq_len_le in H as H1. simpl in H1. inversion H1. Qed.
+
+Lemma subseq_nonempty_nil_contra: forall (h:nat) (t:list nat), ~ subseq (h::t) [].
+Proof. intros h t. unfold not. intros H.
+  apply subseq_len_le in H as H1. simpl in H1. inversion H1. Qed. 
 
 Theorem subseq_trans : forall (l1 l2 l3 : list nat),
   subseq l1 l2 ->
@@ -1503,7 +1556,12 @@ Theorem subseq_trans : forall (l1 l2 l3 : list nat),
 Proof.
   (* Hint: be careful about what you are doing induction on and which
      other things need to be generalized... *)
-  (* FILL IN HERE *) Admitted.
+  intros l1 l2 l3 H1 H2. generalize dependent l1. generalize dependent l3. induction l2 as [|h2 t2 IH].
+  - intros l3 H1 l1 H2. apply subseq_of_nil_is_nil in H2. rewrite H2. apply subseq_nil.
+  - intros l3 H1 l1 H2. destruct l3 as [|h3 t3].
+    + apply subseq_nonempty_nil_contra in H1. destruct H1.
+    + specialize IH with (l3:=h3::t3) (l1:=l1) as IH'.
+      
 (** [] *)
 
 (** **** Exercise: 2 stars, standard, optional (R_provability2)
